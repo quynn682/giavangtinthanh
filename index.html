@@ -70,7 +70,6 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
         
         const urlParams = new URLSearchParams(window.location.search);
         const isTvMode = urlParams.get('mode') === 'tv';
