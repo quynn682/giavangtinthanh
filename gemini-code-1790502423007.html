@@ -41,7 +41,17 @@
         import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, get, set, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 
-        const firebaseConfig = { /* SAO CHÉP CẤU HÌNH TỪ INDEX.HTML XUỐNG ĐÂY */ };
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDVzBg3eEwjqNLwec62_w4rX9Tt9KHVGTg",
+  authDomain: "tinthanhduymong9999.firebaseapp.com",
+  databaseURL: "https://tinthanhduymong9999-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tinthanhduymong9999",
+  storageBucket: "tinthanhduymong9999.firebasestorage.app",
+  messagingSenderId: "610128086774",
+  appId: "1:610128086774:web:81eb465444de721a77ced7",
+  measurementId: "G-HKDDT3N2QE"
+};
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getDatabase(app);
