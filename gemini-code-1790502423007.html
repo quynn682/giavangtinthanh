@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản Trị Bảng Giá</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { page: '#FAF7F2', card: '#FFFFFF', textMain: '#302820', gold: '#C6A66B', btnPrimary: '#80602D', borderMain: '#E8DFD2' } } } }
+    </script>
+</head>
+<body class="bg-page min-h-screen p-4">
+
+    <div id="login-section" class="max-w-md mx-auto bg-card p-6 rounded shadow mt-20 border border-borderMain">
+        <h2 class="text-xl font-bold mb-4 text-textMain text-center">ĐĂNG NHẬP QUẢN TRỊ</h2>
+        <input type="email" id="email" placeholder="Email" class="w-full mb-3 p-2 border border-borderMain rounded">
+        <input type="password" id="password" placeholder="Mật khẩu" class="w-full mb-4 p-2 border border-borderMain rounded">
+        <button id="btn-login" class="w-full bg-btnPrimary text-white py-2 rounded font-bold">Đăng nhập</button>
+    </div>
+
+    <div id="admin-section" class="max-w-4xl mx-auto hidden mt-10">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-textMain">Cập Nhật Bảng Giá</h2>
+            <button id="btn-logout" class="text-sm text-gray-500 underline">Đăng xuất</button>
+        </div>
+        
+        <div class="bg-card p-4 rounded shadow border border-borderMain">
+            <div id="editor-rows" class="space-y-4">
+                <!-- Javascript sinh ra các hàng nhập liệu -->
+            </div>
+            <textarea id="note-input" class="w-full mt-6 p-2 border border-borderMain rounded" placeholder="Ghi chú cửa hàng..."></textarea>
+            
+            <div class="mt-6 flex justify-end">
+                <button id="btn-publish" class="bg-btnPrimary text-white px-8 py-3 rounded font-bold hover:opacity-90">CÔNG BỐ BẢNG GIÁ</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+        import { getDatabase, ref, get, set, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+        const firebaseConfig = { /* SAO CHÉP CẤU HÌNH TỪ INDEX.HTML XUỐNG ĐÂY */ };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        let currentData = null;
+
+        // Xử lý tiền tệ
+        const cleanNum = (str) => parseInt(str.toString().replace(/\D/g, '') || 0);
+        const formatNum = (num) => new Intl.NumberFormat('vi-VN').format(num);
+
+        const buildEditor = (items) => {
+            const container = document.getElementById('editor-rows');
+            container.innerHTML = '';
+            items.forEach((item, index) => {
+                container.innerHTML += `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 border-b border-borderMain pb-3">
+                        <input type="text" value="${item.name}" class="font-medium p-2 bg-page border border-borderMain rounded" disabled>
+                        <div>
+                            <label class="text-xs text-gray-500">Mua vào (VNĐ/chỉ)</label>
+                            <input type="text" data-type="buy" data-index="${index}" value="${formatNum(item.buy)}" class="price-input w-full p-2 border border-borderMain rounded text-right font-bold text-textMain">
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500">Bán ra (VNĐ/chỉ)</label>
+                            <input type="text" data-type="sell" data-index="${index}" value="${formatNum(item.sell)}" class="price-input w-full p-2 border border-borderMain rounded text-right font-bold text-textMain">
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Tự động phân cách hàng nghìn khi nhập
+            document.querySelectorAll('.price-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    let val = cleanNum(e.target.value);
+                    e.target.value = formatNum(val);
+                });
+            });
+        };
+
+        // Đăng nhập
+        document.getElementById('btn-login').onclick = () => {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            signInWithEmailAndPassword(auth, e, p).catch(err => alert("Đăng nhập thất bại: " + err.message));
+        };
+
+        document.getElementById('btn-logout').onclick = () => signOut(auth);
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('admin-section').classList.remove('hidden');
+                
+                // Lấy dữ liệu cũ làm bản nháp
+                const snap = await get(ref(db, 'current'));
+                currentData = snap.val() || {
+                    items: [
+                        { name: "Vàng khâu 24K", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 },
+                        { name: "Vàng nữ trang 24K / 9999", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 }
+                        // Khai báo các loại vàng khác tại đây
+                    ], note: ""
+                };
+                
+                document.getElementById('note-input').value = currentData.note || "";
+                buildEditor(currentData.items);
+            } else {
+                document.getElementById('login-section').classList.remove('hidden');
+                document.getElementById('admin-section').classList.add('hidden');
+            }
+        });
+
+        // Công bố
+        document.getElementById('btn-publish').onclick = async () => {
+            const inputs = document.querySelectorAll('.price-input');
+            const newItems = JSON.parse(JSON.stringify(currentData.items)); // Clone
+            
+            let hasError = false;
+
+            inputs.forEach(input => {
+                const index = input.getAttribute('data-index');
+                const type = input.getAttribute('data-type');
+                const val = cleanNum(input.value);
+                
+                if(val < 0) hasError = true;
+                
+                // Tính chênh lệch so với bản cũ
+                const diff = val - currentData.items[index][type];
+                newItems[index][type] = val;
+                newItems[index][type + 'Diff'] = diff;
+            });
+
+            // Kiểm tra mua > bán
+            newItems.forEach(item => {
+                if (item.buy > item.sell && item.sell > 0) {
+                    alert(`Lỗi: Dòng "${item.name}" có giá mua cao hơn giá bán!`);
+                    hasError = true;
+                }
+            });
+
+            if(hasError) return;
+            if(!confirm("Xác nhận công bố bảng giá mới ra trang khách hàng?")) return;
+
+            const payload = {
+                timestamp: new Date().toISOString(),
+                user: auth.currentUser.email,
+                items: newItems,
+                note: document.getElementById('note-input').value
+            };
+
+            // Lưu bảng giá hiện tại và đẩy vào lịch sử
+            await set(ref(db, 'current'), payload);
+            await push(ref(db, 'history'), payload);
+            
+            alert("Đã công bố thành công!");
+            currentData = payload; // Cập nhật nháp
+        };
+    </script>
+</body>
+</html>
