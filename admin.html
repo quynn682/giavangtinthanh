@@ -104,14 +104,27 @@ const firebaseConfig = {
                 document.getElementById('login-section').classList.add('hidden');
                 document.getElementById('admin-section').classList.remove('hidden');
                 
-                // Lấy dữ liệu cũ làm bản nháp
                 const snap = await get(ref(db, 'current'));
-                currentData = snap.val() || {
-                    items: [
-                        { name: "Vàng khâu 24K", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 },
-                        { name: "Vàng nữ trang 24K / 9999", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 }
-                        // Khai báo các loại vàng khác tại đây
-                    ], note: ""
+                let data = snap.val();
+                
+                // DANH MỤC CÁC LOẠI VÀNG CỦA CỬA HÀNG
+                let defaultItems = [
+                    { name: "24K (999.9)", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 },
+                    { name: "980", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 },
+                    { name: "610", buy: 0, sell: 0, buyDiff: 0, sellDiff: 0 }
+                ];
+
+                // Giữ lại giá cũ nếu đã từng nhập để không bị mất số
+                if (data && data.items) {
+                    defaultItems = defaultItems.map(item => {
+                        let match = data.items.find(old => old.name === item.name);
+                        return match ? match : item;
+                    });
+                }
+
+                currentData = {
+                    items: defaultItems,
+                    note: data ? data.note : ""
                 };
                 
                 document.getElementById('note-input').value = currentData.note || "";
